@@ -50,6 +50,7 @@ namespace CarInsurance.Controllers
         {
             if (ModelState.IsValid)
             {
+                CalculateQuote(insuree);
                 db.Insurees.Add(insuree);
                 db.SaveChanges();
                 return RedirectToAction("Index");
@@ -82,6 +83,7 @@ namespace CarInsurance.Controllers
         {
             if (ModelState.IsValid)
             {
+                CalculateQuote(insuree);
                 db.Entry(insuree).State = EntityState.Modified;
                 db.SaveChanges();
                 return RedirectToAction("Index");
@@ -125,42 +127,40 @@ namespace CarInsurance.Controllers
         }
 
 
-        // ASSIGNMENT //
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "Id,FirstName,LastName,EmailAddress,DateOfBirth,CarYear,CarMake,CarModel,DUI,SpeedingTickets,CoverageType,Quote")] Insuree insuree)
-        {
-            if (ModelState.IsValid)
-            {
-                CalculateQuote(ref insuree); // Calculate the quote
-                db.Insurees.Add(insuree);
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-
-            return View(insuree);
-        }
+       // ASSIGNMENT //
 
 
-        private void CalculateQuote(ref Insuree insuree)
+        private void CalculateQuote(Insuree insuree)
         {
             int baseRate = 50;
+
+            // Calculating age
             var age = DateTime.Today.Year - insuree.DateOfBirth.Year;
+            if (insuree.DateOfBirth > DateTime.Today.AddYears(-age)) age--;
             if (age <= 18) baseRate += 100;
-            else if (age <= 25) baseRate += 50;
+            else if (age > 18 && age <= 25) baseRate += 50;
             else baseRate += 25;
 
+
+            //Adjusting the car year
             if (insuree.CarYear < 2000 || insuree.CarYear > 2015) baseRate += 25;
+
+            // Adjusting the car make and model
             if (insuree.CarMake.ToLower() == "porsche")
             {
                 baseRate += 25;
                 if (insuree.CarModel.ToLower() == "911 carrera") baseRate += 25; // Porsche AND 911 Carrera
             }
 
-            baseRate += 10 * insuree.SpeedingTickets; // Extra $10 for every speeding ticket theuser has
 
+            //Adjusting the speeding ticket
+            baseRate += insuree.SpeedingTickets *10; // Extra $10 for every speeding ticket theuser has
+
+
+            // Adjusting the DUI
             if (insuree.DUI) baseRate = (int)(baseRate * 1.25); // If the user has ever had a DUI
+
+            //Adjusting coverage tpe
             if (insuree.CoverageType) baseRate = (int)(baseRate * 1.5); // Assuming CoverageType is a boolean where true indicates full coverage
 
             insuree.Quote = baseRate;
